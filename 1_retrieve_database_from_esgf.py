@@ -113,43 +113,6 @@ def search_cmip_data(experiment_id, variable, conn, retry_delay=2):
                 logging.error(f"Error processing dataset {dataset.dataset_id}: {e}")
     return lines
 
-#    master_ids = sorted(datasets.keys())
-#    lines = []
-#    for master_id in master_ids:
-#        print(f"=== DATASET: {master_id}")
-#        data_nodes = datasets[master_id]
-#        for dataset, data_node in data_nodes:
-#            success = True
-#
-#            # handle http 503 Error
-#            retries = 3
-#            for attempt in range(retries):
-#                try:
-#                    files = dataset.file_context().search()
-#                    break  # Break out of the loop if successful
-#                except HTTPError as e:
-#                    if attempt < retries - 1:
-#                        print(f"Retrying... ({attempt + 1})")
-#                        time.sleep(retry_delay)  # Wait before retrying
-#                    else:
-#                        raise
-#
-#            for f in files:
-#                file_id = f.file_id
-#                filename = f.filename
-#                download_url = f.download_url
-#                opendap_url = f.opendap_url
-#                size = str(f.size)
-#                l = []
-#                for itm in [master_id, data_node, filename, size, download_url, opendap_url]:
-#                    if itm == None:
-#                        itm = ''
-#                    else:
-#                        l.append(str(itm))
-#                lines.append(','.join(l))
-#    return lines
-
-
 def main():
 
     # specify experiments and variables to download
