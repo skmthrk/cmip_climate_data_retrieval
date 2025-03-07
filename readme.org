@@ -1,0 +1,197 @@
+#+TITLE: CMIP6 Climate Data Retrieval Pipeline
+#+AUTHOR: Hiroaki Sakamoto
+#+DATE: [2025-03-07 Fri 09:24]
+
+* Overview
+
+This documentation describes a transparent pipeline for efficiently retrieving climate model data from the Earth System Grid Federation (ESGF) network,
+specifically targeting CMIP6 (Coupled Model Intercomparison Project Phase 6) datasets.
+
+The pipeline consists of five sequential Python scripts designed to:
+
+1. Query ESGF nodes for metadata about available datasets
+2. Process and organize this metadata
+3. Generate a download queue based on specific criteria
+4. Download the datasets
+5. Retry downloading any files that failed in the initial attempt
+
+The system handles HTTP errors, implements retries, and provides fallback mechanisms between HTTP downloads and OPENDaP access methods.
+
+* Prerequisites
+
+- Python 3.6+
+- Required packages:
+  - =pyesgf=: For interfacing with ESGF search API
+  - =requests=: For HTTP operations
+  - =xarray=: For OPENDaP access and NetCDF handling
+  - =pandas=: For data processing
+
+* Pipeline Components
+
+** 1. Database Retrieval (=1_retrieve_database_from_esgf.py=)
+
+This script establishes connections to ESGF search nodes and retrieves metadata for datasets matching specified criteria.
+
+*** Key Features:
+- Searches across multiple ESGF nodes with failover capability
+- Multi-threaded metadata retrieval for improved performance
+- Automatic retry on HTTP errors
+- Comprehensive logging
+
+*** Configuration:
+- =experiment_ids=: List of climate model experiments to search for
+- =variables=: Climate variables of interest
+- =search_domains=: Prioritized list of ESGF nodes
+
+*** Output:
+- CSV files containing dataset metadata, organized by experiment and variable
+
+** 2. Database Processing (=2_process_database.py=)
+
+Reorganizes the raw metadata into a more structured format for easier processing.
+
+*** Key Features:
+- Consolidates metadata across experiments and variables
+- Organizes data by climate models (source IDs)
+- Handles variant labels systematically
+- Combines duplicate download URLs
+
+*** Output:
+- CSV files organized by source ID, with one file per climate model
+
+** 3. Download Queue Generation (=3_generate_queue_for_download.py=)
+
+Identifies datasets that meet specific criteria and prepares them for download.
+
+*** Key Features:
+- Filters for sources that have both piControl and abrupt-4xCO2 experiments
+- Ensures all required variables are available
+- Selects consistent variant labels across experiments
+- Calculates total storage requirements
+
+*** Selection Criteria:
+- Datasets must include both piControl and abrupt-4xCO2 experiments
+- Datasets must include rsdt, rsut, rlut, and tas variables
+- Uses the first variant label (typically r1i1p1f1) for consistency
+
+*** Output:
+- CSV files in the queue_for_download directory
+- storage_requirement.txt file with estimated storage needs
+
+** 4. Dataset Download (=4_download_datasets.py=)
+
+Downloads the files identified in the previous step.
+
+*** Key Features:
+- Processes the download queue
+- Implements retry logic for resilience
+- Falls back to OPENDaP if HTTP download fails
+- Tracks failed downloads
+
+*** Output:
+- Downloaded NetCDF files in the 'downloaded' directory
+- failed_download.txt listing files that couldn't be retrieved
+
+** 5. Failed Download Retry (=5_retry_for_failed_download.py=)
+
+Makes additional attempts to download files that failed in the previous step.
+
+*** Key Features:
+- Re-queries ESGF nodes for the specific files
+- Attempts alternative download URLs
+- Tries both HTTP and OPENDaP methods
+- Updates the failed downloads list
+
+*** Output:
+- Additional downloaded files
+- still_failed_download.txt listing files that still couldn't be retrieved
+
+* Directory Structure
+
+#+BEGIN_SRC
+.
+├── database/                  # Raw metadata from ESGF
+│   └── extra/                 # Additional metadata from ESGF
+├── database_processed/        # Processed metadata by source ID
+├── queue_for_download/        # Files selected for download
+│   └── storage_requirement.txt  # Estimated storage needs
+├── downloaded/                # Successfully downloaded files
+│   ├── failed_download.txt      # Files that failed to download
+│   └── still_failed_download.txt  # Files that failed after retry
+#+END_SRC
+
+* Usage Instructions
+
+** Retrieve dataset metadata:
+#+BEGIN_SRC bash
+python 1_retrieve_database_from_esgf.py
+#+END_SRC
+
+** Process the metadata:
+#+BEGIN_SRC bash
+python 2_process_database.py
+#+END_SRC
+
+** Generate download queue:
+#+BEGIN_SRC bash
+python 3_generate_queue_for_download.py
+#+END_SRC
+
+** Download the datasets:
+#+BEGIN_SRC bash
+python 4_download_datasets.py
+#+END_SRC
+
+** Retry failed downloads:
+#+BEGIN_SRC bash
+python 5_retry_for_failed_download.py
+#+END_SRC
+
+* Error Handling and Resilience
+
+The pipeline incorporates several resilience features:
+
+- Multiple retry attempts for HTTP errors
+- Fallback between different ESGF search nodes
+- Alternative download methods (HTTP and OPENDaP)
+- Chunked file downloads to handle large files
+- Thread pooling to manage concurrent operations
+
+* Extending the Pipeline
+
+** Adding New Experiments or Variables
+
+1. Modify the =experiment_ids= and =variables= lists in =1_retrieve_database_from_esgf.py=
+2. Re-run the entire pipeline
+
+** Adding Custom Selection Criteria
+
+Modify the filtering logic in =3_generate_queue_for_download.py= to implement different selection rules.
+
+** Adding Support for New ESGF Nodes
+
+Add additional search domains to the =search_domains= list in =1_retrieve_database_from_esgf.py=.
+
+* Troubleshooting
+
+** Connection Issues
+
+If encountering connection problems with ESGF nodes:
+- Check network connectivity
+- Verify the search domain URLs are correct
+- Try extending the retry delays
+
+** Download Failures
+
+Common reasons for download failures:
+- Temporary ESGF node outages
+- Rate limiting
+- Network interruptions
+- File permission issues
+
+* Performance Considerations
+
+- The metadata retrieval stage uses multi-threading to improve performance
+- Large downloads may take considerable time and bandwidth
+- Consider running the pipeline on a machine with good network connectivity
+- Storage requirements can be substantial (check storage_requirement.txt)
