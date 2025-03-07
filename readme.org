@@ -4,7 +4,7 @@
 
 * Overview
 
-This documentation describes a transparent pipeline for efficiently retrieving climate model data from the Earth System Grid Federation (ESGF) network,
+A transparent pipeline for efficiently retrieving climate model data from the Earth System Grid Federation (ESGF) network,
 specifically targeting CMIP6 (Coupled Model Intercomparison Project Phase 6) datasets.
 
 The pipeline consists of five sequential Python scripts designed to:
@@ -195,3 +195,7 @@ Common reasons for download failures:
 - Large downloads may take considerable time and bandwidth
 - Consider running the pipeline on a machine with good network connectivity
 - Storage requirements can be substantial (check storage_requirement.txt)
+
+* Alternatives
+
+- See [[https://github.com/ESGF/esgf-download][esgpull]] for more sophisticated data management utility.
