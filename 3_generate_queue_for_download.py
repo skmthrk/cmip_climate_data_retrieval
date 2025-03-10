@@ -45,7 +45,10 @@ def main():
                     df_experiment = df[df['experiment_id'] == experiment_id]
                     variant_labels = list(set(df_experiment['variant_label']))
                     variant_labels.sort(key=lambda s: variant_tuple(s))
-                    variant_label = variant_labels[0]
+                    if source_id == 'MIROC-ES2H':
+                        variant_label = 'r1i1p4f2' # MIROC-ES2H's r1i1p1f2 variant only contains single-year data
+                    else:
+                        variant_label = variant_labels[0]
                     df_experiment_variant = df_experiment[df_experiment['variant_label'] == variant_label]
                     variables = set(df_experiment_variant['variable'])
                     if {'rsdt', 'rsut', 'rlut', 'tas'}.issubset(variables):
