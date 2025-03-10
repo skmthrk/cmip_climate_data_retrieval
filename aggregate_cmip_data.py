@@ -32,17 +32,23 @@ def build_data(input_dir, output_dir, file_names):
         # for output file name
         var_id, _, model_id, experiment_id, variant_id, grid_type, duration = file_name.split('_')
 
-        try:
-            # load areacella file
-            area_file_name = f"areacella_fx_{model_id}_{experiment_id}_{variant_id}_{grid_type}.nc"
-            area_file_path = os.path.join(input_dir, area_file_name)
-            area_ds = xr.open_dataset(area_file_path)
-            area_da = area_ds[area_ds.variable_id]
-            area_da.data = area_da.data * 1e-6 # convert m2 to km2
-            area_da.attrs["units"] = "km2"
-        except FileNotFoundError:
-            logger.warning(f"areacella file not found: {area_file_name}. Generating area data array.")
+        if model_id == 'MIROC-ES2H':
+            # It looks like for MIROC-ES2H, there is a shape mismatch between climate variable data (128,256) and areacella data (64,128)
+            # So for this model, always generate area data instead of using the provided areacella data
+            logger.info(f"Using generated area data for {model_id} due to grid mismatch issues")
             area_da = area(da)
+        else:
+            try:
+                # load areacella file
+                area_file_name = f"areacella_fx_{model_id}_{experiment_id}_{variant_id}_{grid_type}.nc"
+                area_file_path = os.path.join(input_dir, area_file_name)
+                area_ds = xr.open_dataset(area_file_path)
+                area_da = area_ds[area_ds.variable_id]
+                area_da.data = area_da.data * 1e-6 # convert m2 to km2
+                area_da.attrs["units"] = "km2"
+            except FileNotFoundError:
+                logger.warning(f"areacella file not found: {area_file_name}. Generating area data array.")
+                area_da = area(da)
 
         # compute annual mean
         years = []
@@ -130,7 +136,7 @@ def main():
             for variable in variables:
                 output_file_path = os.path.join(output_dir, f"{variable}_{source_id}_{experiment}.csv")
                 if os.path.exists(output_file_path):
-                    #print(f"Already exists: {output_file_path}")
+                    print(f"Already exists: {output_file_path}")
                     continue
                 file_names = variables[variable]
                 try:
